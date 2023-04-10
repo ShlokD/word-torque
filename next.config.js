@@ -1,6 +1,9 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-}
+const withPreact = require("next-plugin-preact");
 
-module.exports = nextConfig
+const nextConfig = withPreact({
+  experimental: {
+    esmExternals: false,
+  },
+});
+
+module.exports = nextConfig;
