@@ -1,119 +1,178 @@
 import Image from "next/image";
+import { useEffect, useState } from "preact/hooks";
+import { useRouter } from "next/router";
+import Link from "next/link";
+const toTitle = (str) =>
+  str?.[0]?.toUpperCase?.() + str?.slice(1)?.toLowerCase();
 
-export default function Home() {
+const WordLink = ({ word }) => {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
+    <Link href={`/?w=${word}`}>
+      <a className="border-2 border-red-400 bg-red-400 p-1 text-white text-sm">
+        {word}
+      </a>
+    </Link>
+  );
+};
+const Meaning = ({ partOfSpeech, definitions }) => {
+  return definitions?.map((def, i) => {
+    return (
+      <div
+        className="py-4 flex flex-col gap-2 border-b-2"
+        key={`definition-${i}`}
+      >
+        <p className="font-bold py-2 text-sm">{partOfSpeech.toUpperCase()}</p>
+        <p className="text-xl w-full">{def.definition}</p>
+        {def.antonyms.length > 0 && (
+          <div className="text-gray-400 py-2 flex flex-row gap-2">
+            Antonyms{" "}
+            {def.antonyms.map((a, i) => (
+              <WordLink key={`antonym-${i}`} word={a} />
+            ))}
+          </div>
+        )}
+        {def.synonyms.length > 0 && (
+          <div className="text-gray-400 py-2 flex flex-row gap-2">
+            See Also
+            {def.synonyms.map((s, i) => (
+              <WordLink key={`synonym-${i}`} word={s} />
+            ))}
+          </div>
+        )}
       </div>
+    );
+  });
+};
+export default function Home() {
+  const params = new URLSearchParams(global?.window?.location?.search);
+  const w = params.get("w");
+  const [word, setWord] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [appState, setAppState] = useState("READY");
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+  const fetchRandomWord = async () => {
+    try {
+      setAppState("LOADING");
+      const res = await fetch("/api/random");
+      const json = await res.json();
+      setWord(json);
+      setAppState("READY");
+    } catch (_) {
+      setWord({});
+    }
+  };
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
+  const fetchWord = async (term = w) => {
+    try {
+      setAppState("LOADING");
+      const res = await fetch(`/api/word?w=${term}`);
+      const json = await res.json();
+      setWord(json);
+      setAppState("READY");
+    } catch (_) {
+      setWord({});
+    }
+  };
+
+  const handleSearch = () => {
+    if (searchTerm.length === 0) return;
+    params.set("w", searchTerm);
+    window.location.search = params.toString();
+    setSearchTerm("");
+  };
+
+  useEffect(() => {
+    if (!w) {
+      fetchRandomWord();
+    } else {
+      fetchWord();
+    }
+  }, [w]);
+
+  const playSound = () => {
+    if (!word.word) return;
+    const speech = new SpeechSynthesisUtterance();
+    speech.lang = "en";
+    speech.text = word.word;
+    speech.rate = 0.5;
+    speech.volume = 40;
+    window.speechSynthesis.speak(speech);
+  };
+
+  const synonyms = word?.meanings?.flatMap((m) => m.synonyms);
+
+  return (
+    <div className="bg-red-700 w-full h-full min-h-screen flex flex-col">
+      <header className="flex flex-row items-center justify-center p-4 gap-2 w-full text-white">
+        <Image src="/abstract.png" height="64" width="64" alt=""></Image>
+        <h1 className="font-bold text-3xl">Torque Dictionary</h1>
+      </header>
+      <main
+        style={{ minHeight: "80vh" }}
+        className="w-11/12 self-center bg-gray-100 p-2 my-4 flex flex-col"
+      >
+        <form
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            handleSearch(searchTerm);
+          }}
+          className="m-4 flex flex-row items-stretch justify-center"
         >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p
-            className={`m-0 max-w-[30ch] text-sm opacity-50`}
+          <input
+            className="p-4 w-9/12"
+            type="search"
+            placeholder="Search for a word..."
+            aria-label="Search for a word"
+            value={searchTerm}
+            onChange={(ev) => setSearchTerm(ev.target.value)}
+          ></input>
+          <button
+            className="bg-red-700 text-white p-4 w-3/12 shadow-lg"
+            onClick={handleSearch}
+            type="submit"
           >
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p
-            className={`m-0 max-w-[30ch] text-sm opacity-50`}
-          >
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p
-            className={`m-0 max-w-[30ch] text-sm opacity-50`}
-          >
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+            SEARCH
+          </button>
+        </form>
+        {appState === "LOADING" && (
+          <p className="text-center p-4 ">Looking...</p>
+        )}
+        {word?.word?.length > 0 && appState === "READY" && (
+          <div className="flex flex-col m-4 bg-white p-4">
+            <div className="flex flex-row items-center gap-4">
+              <h2 className="text-4xl font-bold">{toTitle(word.word)}</h2>
+              <p>{word.phonetics?.[0]?.text}</p>
+              {global.window?.speechSynthesis && (
+                <button className="mt-2" onClick={playSound}>
+                  <Image
+                    src="/volume-up.png"
+                    height="32"
+                    width="32"
+                    alt="Play sound"
+                  />
+                </button>
+              )}
+            </div>
+            <hr className="w-1/12 my-4 border-red-700 border-4" />
+            {synonyms?.length > 0 && (
+              <div className="flex flex-col">
+                <p>Related</p>
+                <div className="flex flex-row flex-wrap gap-2">
+                  {synonyms?.map((syn, i) => {
+                    return <WordLink key={`syn-${i}`} word={syn} />;
+                  })}
+                </div>
+              </div>
+            )}
+            {word?.meanings?.map((meaning, i) => {
+              return <Meaning {...meaning} key={`meaning-${i}`} />;
+            })}
+            {word?.meanings?.length === 0 && (
+              <p>No definitions found. Please try another word</p>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
