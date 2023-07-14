@@ -45,6 +45,7 @@ const Meaning = ({ partOfSpeech, definitions }) => {
 };
 export default function Home() {
   const params = new URLSearchParams(global?.window?.location?.search);
+  const router = useRouter();
   const w = params.get("w");
   const [word, setWord] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -76,8 +77,7 @@ export default function Home() {
 
   const handleSearch = () => {
     if (searchTerm.length === 0) return;
-    params.set("w", searchTerm);
-    window.location.search = params.toString();
+    router.push(`/?w=${searchTerm}`);
     setSearchTerm("");
   };
 
